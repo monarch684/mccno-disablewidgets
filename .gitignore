@@ -1,0 +1,22 @@
+# Claude Code directory
+.claude
+
+# Intune package output
+Output/
+*.intunewin
+
+# PowerShell logs
+*.log
+
+# Windows thumbnail cache
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# Recycle Bin
+$RECYCLE.BIN/
+
+# Windows shortcuts
+*.lnk
