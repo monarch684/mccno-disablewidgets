@@ -1,184 +1,65 @@
 <#
 .SYNOPSIS
-    Deploy Application
+    Deploy DisableWidgets Registry Settings
 .DESCRIPTION
-    This script deploys an application with install/uninstall/repair functionality
+    This script disables Windows taskbar widgets via registry settings
 .NOTES
-    Author: Generated Template
+    Author: IT Department
     Date: 2025-10-29
-    Usage: Update the configuration section and deployment logic with your application-specific values
+    Application: DisableWidgets
 #>
 
 [CmdletBinding()]
-param(
-    [Parameter()]
-    [ValidateSet('Install', 'Uninstall', 'Repair')]
-    [string]$DeploymentType = 'Install',
+param()
 
-    [Parameter()]
-    [string]$LogPath = "$env:TEMP\Application_Deployment.log"
-)
-
-# Set error action preference
 $ErrorActionPreference = 'Stop'
 
+# Dot-source event logging template
+. "$PSScriptRoot\EventLog-Template.ps1"
+Initialize-EventLog -SourceName "Deploy-RegistrySettings_DisableWidgets"
+
 # ============================================================================
-# CONFIGURATION SECTION - UPDATE THESE VALUES FOR YOUR APPLICATION
+# CONFIGURATION
 # ============================================================================
 $applicationName = "DisableWidgets"
+$scriptPath = $PSScriptRoot
 
 # Registry settings for disabling Windows taskbar widgets
 $regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
 $regValueName = "AllowNewsAndInterests"
 $disabledValue = 0  # 0 = Disabled, 1 = Enabled
-# ============================================================================
 
-# Function to write log messages
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "[$timestamp] $Message"
-    Write-Host $logMessage
-    Add-Content -Path $LogPath -Value $logMessage
-}
-
-# ============================================================================
-# DEPLOYMENT FUNCTIONS - UPDATE THESE WITH YOUR APPLICATION LOGIC
-# ============================================================================
-
-# Function to install application
-function Install-Application {
-    try {
-        Write-Log "Installing $applicationName..."
-        Write-Log "Disabling Windows taskbar widgets via registry..."
-
-        # Create the registry path if it doesn't exist
-        if (-not (Test-Path $regPath)) {
-            Write-Log "Creating registry path: $regPath"
-            New-Item -Path $regPath -Force | Out-Null
-        }
-
-        # Set the registry value to disable widgets
-        Write-Log "Setting $regValueName to $disabledValue (Disabled)"
-        New-ItemProperty -Path $regPath -Name $regValueName -Value $disabledValue -PropertyType DWord -Force | Out-Null
-
-        Write-Log "Taskbar widgets have been disabled"
-        Write-Log "$applicationName installed successfully"
-        return 0
-    }
-    catch {
-        Write-Log "ERROR: $($_.Exception.Message)"
-        throw
-    }
-}
-
-# Function to uninstall application
-function Uninstall-Application {
-    try {
-        Write-Log "Uninstalling $applicationName..."
-        Write-Log "Re-enabling Windows taskbar widgets..."
-
-        # Check if the registry path exists
-        if (Test-Path $regPath) {
-            # Check if the registry value exists
-            $regValue = Get-ItemProperty -Path $regPath -Name $regValueName -ErrorAction SilentlyContinue
-
-            if ($regValue) {
-                Write-Log "Removing registry value: $regValueName"
-                Remove-ItemProperty -Path $regPath -Name $regValueName -Force
-                Write-Log "Taskbar widgets have been re-enabled"
-            }
-            else {
-                Write-Log "Registry value $regValueName not found, nothing to remove"
-            }
-        }
-        else {
-            Write-Log "Registry path $regPath not found, nothing to remove"
-        }
-
-        Write-Log "$applicationName uninstalled successfully"
-        return 0
-    }
-    catch {
-        Write-Log "ERROR: $($_.Exception.Message)"
-        throw
-    }
-}
-
-# Function to repair application
-function Repair-Application {
-    try {
-        Write-Log "Repairing $applicationName..."
-        Write-Log "Re-applying registry settings to disable widgets..."
-
-        # Create the registry path if it doesn't exist
-        if (-not (Test-Path $regPath)) {
-            Write-Log "Creating registry path: $regPath"
-            New-Item -Path $regPath -Force | Out-Null
-        }
-
-        # Set the registry value to disable widgets
-        Write-Log "Setting $regValueName to $disabledValue (Disabled)"
-        New-ItemProperty -Path $regPath -Name $regValueName -Value $disabledValue -PropertyType DWord -Force | Out-Null
-
-        Write-Log "Registry settings have been reapplied"
-        Write-Log "$applicationName repaired successfully"
-        return 0
-    }
-    catch {
-        Write-Log "ERROR: $($_.Exception.Message)"
-        throw
-    }
-}
-
-# ============================================================================
-# MAIN DEPLOYMENT LOGIC
+# Installation timeout in seconds (30 minutes)
+$installTimeout = 1800
 # ============================================================================
 
 try {
-    Write-Log "=========================================="
-    Write-Log "$applicationName Deployment"
-    Write-Log "Deployment Type: $DeploymentType"
-    Write-Log "=========================================="
-
-    $exitCode = 0
-
-    # Process deployment
-    switch ($DeploymentType) {
-        'Install' {
-            $exitCode = Install-Application
-        }
-        'Uninstall' {
-            $exitCode = Uninstall-Application
-        }
-        'Repair' {
-            $exitCode = Repair-Application
-        }
+    Write-AppEventLog -EventType ScriptStarted -Message "$applicationName Deployment" -Data @{
+        ScriptPath = $scriptPath
+        Computer = $env:COMPUTERNAME
     }
 
-    # Return appropriate exit code
-    if ($exitCode -eq 3010) {
-        Write-Log "=========================================="
-        Write-Log "Deployment completed - Reboot required"
-        Write-Log "=========================================="
-        exit 3010
+    Write-AppEventLog -EventType InstallStarted -Message "Installing $applicationName"
+    Write-AppEventLog -EventType Information -Message "Disabling Windows taskbar widgets via registry..."
+
+    # Create the registry path if it doesn't exist
+    if (-not (Test-Path $regPath)) {
+        Write-AppEventLog -EventType Information -Message "Creating registry path: $regPath"
+        New-Item -Path $regPath -Force | Out-Null
     }
-    elseif ($exitCode -ne 0) {
-        Write-Log "=========================================="
-        Write-Log "Deployment failed with exit code: $exitCode"
-        Write-Log "=========================================="
-        exit $exitCode
-    }
-    else {
-        Write-Log "=========================================="
-        Write-Log "Deployment completed successfully"
-        Write-Log "=========================================="
-        exit 0
-    }
+
+    # Set the registry value to disable widgets
+    Write-AppEventLog -EventType Information -Message "Setting $regValueName to $disabledValue (Disabled)"
+    New-ItemProperty -Path $regPath -Name $regValueName -Value $disabledValue -PropertyType DWord -Force | Out-Null
+
+    Write-AppEventLog -EventType InstallCompleted -Message "$applicationName installed successfully - Taskbar widgets disabled"
+    Write-AppEventLog -EventType ScriptCompleted -Message "Deployment completed successfully"
+    exit 0
 }
 catch {
-    Write-Log "=========================================="
-    Write-Log "Deployment failed: $($_.Exception.Message)"
-    Write-Log "=========================================="
+    Write-AppEventLog -EventType ScriptFailed -Message "Deployment failed: $($_.Exception.Message)" -Data @{
+        Error = $_.Exception.Message
+        StackTrace = $_.ScriptStackTrace
+    }
     exit 1
 }

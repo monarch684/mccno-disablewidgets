@@ -1,74 +1,66 @@
 <#
 .SYNOPSIS
-    Remove Application
+    Remove DisableWidgets Registry Settings
 .DESCRIPTION
-    This script removes/uninstalls an application from the system
+    This script removes/reverses the DisableWidgets registry settings
 .NOTES
-    Author: Generated Template
+    Author: IT Department
     Date: 2025-10-29
-    Usage: Update the variables section with your application-specific values
+    Application: DisableWidgets
 #>
 
 [CmdletBinding()]
-param(
-    [Parameter()]
-    [string]$LogPath = "$env:TEMP\Application_Removal.log"
-)
+param()
 
-# Set error action preference
 $ErrorActionPreference = 'Stop'
 
-# ============================================================================
-# CONFIGURATION SECTION - UPDATE THESE VALUES FOR YOUR APPLICATION
-# ============================================================================
-$deployScriptName = "Deploy-RegistrySettings_DisableWidgets.ps1"
-# Alternative: Product Code for direct uninstall
-# $productCode = "{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}"  # TODO: Update with your application's product code
-# ============================================================================
+# Dot-source event logging template
+. "$PSScriptRoot\EventLog-Template.ps1"
+Initialize-EventLog -SourceName "Remove-RegistrySettings_DisableWidgets"
 
-# Function to write log messages
-function Write-Log {
-    param([string]$Message)
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logMessage = "[$timestamp] $Message"
-    Write-Host $logMessage
-    Add-Content -Path $LogPath -Value $logMessage
-}
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+$applicationName = "DisableWidgets"
+# Uninstall timeout in seconds (15 minutes)
+$uninstallTimeout = 900
+
+# Registry settings
+$regPath = "HKLM:\SOFTWARE\Policies\Microsoft\Dsh"
+$regValueName = "AllowNewsAndInterests"
+# ============================================================================
 
 try {
-    Write-Log "=========================================="
-    Write-Log "Application Removal"
-    Write-Log "=========================================="
+    Write-AppEventLog -EventType ScriptStarted -Message "$applicationName Removal" -Data @{
+        Computer = $env:COMPUTERNAME
+    }
 
-    # Method 1: Use the Deploy script with Uninstall parameter (recommended)
-    $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
-    $deployScript = Join-Path -Path $scriptPath -ChildPath $deployScriptName
+    Write-AppEventLog -EventType UninstallStarted -Message "Removing $applicationName - Re-enabling Windows taskbar widgets"
 
-    if (Test-Path $deployScript) {
-        Write-Log "Calling deployment script with Uninstall mode..."
-        & $deployScript -DeploymentType 'Uninstall' -LogPath $LogPath
-        $exitCode = $LASTEXITCODE
+    # Check if the registry path exists
+    if (Test-Path $regPath) {
+        # Check if the registry value exists
+        $regValue = Get-ItemProperty -Path $regPath -Name $regValueName -ErrorAction SilentlyContinue
 
-        Write-Log "=========================================="
-        Write-Log "Removal completed with exit code: $exitCode"
-        Write-Log "=========================================="
-
-        exit $exitCode
+        if ($regValue) {
+            Write-AppEventLog -EventType Information -Message "Removing registry value: $regValueName"
+            Remove-ItemProperty -Path $regPath -Name $regValueName -Force
+            Write-AppEventLog -EventType UninstallCompleted -Message "Taskbar widgets have been re-enabled"
+        }
+        else {
+            Write-AppEventLog -EventType Information -Message "Registry value $regValueName not found, nothing to remove"
+        }
     }
     else {
-        throw "Deploy script not found: $deployScript"
+        Write-AppEventLog -EventType Information -Message "Registry path $regPath not found, nothing to remove"
     }
 
-    # Method 2: Alternative - Direct uninstall by product code (if deployment script is not available)
-    # Uncomment the code below if you need to uninstall using product code:
-    # Write-Log "Attempting to uninstall using product code: $productCode"
-    # $arguments = @("/x", $productCode, "/qn", "/norestart", "/l*v", "`"$env:TEMP\Application_Uninstall.log`"")
-    # $process = Start-Process -FilePath "msiexec.exe" -ArgumentList $arguments -Wait -PassThru -NoNewWindow
-    # exit $process.ExitCode
+    Write-AppEventLog -EventType ScriptCompleted -Message "Removal completed successfully"
+    exit 0
 }
 catch {
-    Write-Log "=========================================="
-    Write-Log "Removal failed: $($_.Exception.Message)"
-    Write-Log "=========================================="
+    Write-AppEventLog -EventType ScriptFailed -Message "Removal failed: $($_.Exception.Message)" -Data @{
+        Error = $_.Exception.Message
+    }
     exit 1
 }
